@@ -1,0 +1,187 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  ENGINEER
+  APPROVER
+  ADMIN
+}
+
+enum ServerEnvironment {
+  PROD
+  STAGING
+  QA
+  DR
+}
+
+enum ServerStatus {
+  ACTIVE
+  MAINTENANCE
+  DECOMMISSIONED
+}
+
+enum ChangeStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id           String        @id @default(uuid())
+  name         String
+  email        String        @unique
+  passwordHash String
+  role         UserRole      @default(ENGINEER)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  requestedChanges ChangeRequest[]  @relation("Requester")
+  assignedChanges  ChangeRequest[]  @relation("Assignee")
+  approvals        Approval[]
+  refreshSessions  RefreshSession[]
+
+  @@map("users")
+}
+
+model Server {
+  id          String            @id @default(uuid())
+  hostname    String            @unique
+  environment ServerEnvironment
+  status      ServerStatus      @default(ACTIVE)
+  ownerTeam   String
+  os          String
+  archivedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  changeRequestServers ChangeRequestServer[]
+
+  @@index([environment, status])
+  @@index([hostname])
+  @@map("servers")
+}
+
+model ChangeRequest {
+  id                 String       @id @default(uuid())
+  title              String
+  description        String
+  status             ChangeStatus @default(DRAFT)
+  version            Int          @default(1)
+  requesterId        String
+  assigneeId         String?
+  startAt            DateTime?
+  endAt              DateTime?
+  implementationPlan String?      @db.Text
+  rollbackPlan       String?      @db.Text
+  outcome            String?
+  outcomeNotes       String?      @db.Text
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  requester User   @relation("Requester", fields: [requesterId], references: [id], onDelete: Restrict)
+  assignee  User?  @relation("Assignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  servers  ChangeRequestServer[]
+  approval Approval?
+  audits   AuditEvent[]
+
+  @@index([status, createdAt, id])
+  @@index([requesterId, createdAt, id])
+  @@index([assigneeId, status])
+  @@map("change_requests")
+}
+
+model ChangeRequestServer {
+  requestId String
+  serverId  String
+  createdAt DateTime @default(now())
+
+  changeRequest ChangeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  server        Server        @relation(fields: [serverId], references: [id], onDelete: Restrict)
+
+  @@id([requestId, serverId])
+  @@index([serverId])
+  @@map("change_request_servers")
+}
+
+model Approval {
+  id         String           @id @default(uuid())
+  requestId  String           @unique
+  approverId String
+  decision   ApprovalDecision
+  reason     String?          @db.Text
+  createdAt  DateTime         @default(now())
+
+  changeRequest ChangeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approver      User          @relation(fields: [approverId], references: [id], onDelete: Restrict)
+
+  @@map("approvals")
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid())
+  requestId  String
+  actorId    String
+  action     String
+  fromStatus String?
+  toStatus   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  changeRequest ChangeRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId, createdAt, id])
+  @@map("audit_events")
+}
+
+model RefreshSession {
+  id           String    @id @default(uuid())
+  userId       String
+  tokenHash    String
+  familyId     String
+  expiry       DateTime
+  revokedAt    DateTime?
+  replacedById String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiry])
+  @@index([familyId])
+  @@map("refresh_sessions")
+}
+
+model OutboxEvent {
+  id               String    @id @default(uuid())
+  type             String
+  aggregateId      String
+  aggregateVersion Int
+  payload          Json
+  attempts         Int       @default(0)
+  nextAttemptAt    DateTime  @default(now())
+  processedAt      DateTime?
+  leaseHolder      String?
+  leasedUntil      DateTime?
+  lastError        String?   @db.Text
+  createdAt        DateTime  @default(now())
+
+  @@index([processedAt, nextAttemptAt])
+  @@map("outbox_events")
+}

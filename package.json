@@ -1,0 +1,41 @@
+{
+  "name": "opsflow-monorepo",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "npm run build:shared && concurrently -k -p \"[{name}]\" -n \"SHARED,API,WEB\" -c \"yellow,blue,cyan\" \"npm run dev:shared\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:shared": "npm run dev --workspace=shared",
+    "dev:server": "npm run dev --workspace=server",
+    "dev:client": "npm run dev --workspace=client",
+    "build:shared": "npm run build --workspace=shared",
+    "build:server": "npm run build --workspace=server",
+    "build:client": "npm run build --workspace=client",
+    "build": "npm run build:shared && npm run build:server && npm run build:client",
+    "start": "npm run start --workspace=server",
+    "typecheck": "npm run build:shared && npm run typecheck:shared && npm run typecheck:server && npm run typecheck:client",
+    "typecheck:shared": "npm run typecheck --workspace=shared",
+    "typecheck:server": "npm run typecheck --workspace=server",
+    "typecheck:client": "npm run typecheck --workspace=client",
+    "lint": "eslint .",
+    "test": "node -e \"console.error('Automated tests are not implemented yet.'); process.exit(1);\"",
+    "db:generate": "npm run db:generate --workspace=server",
+    "db:migrate:dev": "npm run db:migrate:dev --workspace=server",
+    "db:seed": "npm run db:seed --workspace=server",
+    "clean": "node -e \"const fs = require('fs'); ['shared/dist', 'server/dist', 'client/dist'].forEach(p => fs.rmSync(p, { recursive: true, force: true }));\""
+  },
+  "devDependencies": {
+    "@eslint/js": "9.20.0",
+    "@types/node": "22.13.4",
+    "concurrently": "10.0.6",
+    "eslint": "9.20.0",
+    "eslint-plugin-react-hooks": "5.1.0",
+    "globals": "15.15.0",
+    "typescript": "5.7.3",
+    "typescript-eslint": "8.71.1"
+  }
+}

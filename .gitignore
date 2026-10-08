@@ -1,0 +1,14 @@
+node_modules/
+dist/
+client/dist/
+server/dist/
+shared/dist/
+build/
+coverage/
+*.log
+.env*
+!.env.example
+!client/.env.example
+!server/.env.example
+.DS_Store
+Thumbs.db
