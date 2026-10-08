@@ -4,6 +4,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { checkDatabaseConnections } from './db/client.js';
 import { SEED_USERS, SEED_SERVERS } from './db/seedData.js';
+import { authRouter } from './routes/authRoutes.js';
+import { serverRouter } from './routes/serverRoutes.js';
 
 export function createApp() {
   const app = express();
@@ -56,7 +58,7 @@ export function createApp() {
     const dbStatus = await checkDatabaseConnections();
     res.status(200).json({
       service: 'OpsFlow Operations & Change Management Portal',
-      phase: 'Phase 1: Foundations & Architecture',
+      phase: 'Phase 2: Auth, Sessions, Policies & Inventory',
       status: 'OPERATIONAL',
       timestamp: new Date().toISOString(),
       databases: dbStatus,
@@ -67,6 +69,10 @@ export function createApp() {
       },
     });
   });
+
+  // Mount API routers
+  apiV1.use('/auth', authRouter);
+  apiV1.use('/servers', serverRouter);
 
   app.use('/api/v1', apiV1);
 
